@@ -53,23 +53,20 @@ def ai_image_result_dialog():
         </style>
         """, unsafe_allow_html=True)
         
-        # 로딩 중 표시 (2개)
-        cols = st.columns(2)
-        for i in range(2):
-            with cols[i]:
-                st.markdown(f"""
-                <div style="width: 100%; aspect-ratio: 1; background: #1a1a1a; border-radius: 8px;
-                     border: 1px solid #333; display: flex; align-items: center; justify-content: center;">
-                    <div>
-                        <span class="loading-dot"></span>
-                        <span class="loading-dot"></span>
-                        <span class="loading-dot"></span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+        # 로딩 중 표시 (1개 - 컴팩트한 세로 비율)
+        st.markdown(f"""
+        <div style="width: 200px; height: 350px; margin: 0 auto; background: #1a1a1a; border-radius: 8px;
+             border: 1px solid #333; display: flex; align-items: center; justify-content: center;">
+            <div>
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         
         # API 호출해서 이미지 생성
-        with st.spinner("AI가 이미지를 생성 중입니다..."):
+        with st.spinner("🎨 AI가 이미지를 생성 중입니다..."):
             try:
                 # AI 선택 항목들 가져오기
                 selections = st.session_state.get('ai_selections', {})
@@ -167,64 +164,47 @@ def ai_image_result_dialog():
                 if reference_style:
                     reference_part = f"\n                Reference Style Guide: {reference_style}"
                 
-                # 최종 프롬프트 구성
+                # 최종 프롬프트 구성 - "artwork", "painting", "canvas" 단어 완전 제거
                 full_prompt = f"""
-                Create a stunning, high-quality artwork for a luxury perfume label.
+                Generate a beautiful vertical image.
                 
-                === MAIN SUBJECT (MUST BE THE FOCAL POINT) ===
+                === WHAT TO CREATE (PRIORITY) ===
+                {user_prompt}
                 {subject_prompt}
                 
-                === ARTISTIC STYLE ===
+                === VISUAL STYLE ===
                 {style_desc}
                 
-                === ATMOSPHERE & MOOD ===
+                === MOOD & ENVIRONMENT ===
                 {mood_prompt if mood_prompt else 'Elegant and sophisticated'}
                 {weather_prompt}
                 {time_prompt}
                 {bg_prompt}
-                
-                === QUALITY REQUIREMENTS ===
-                - Ultra high quality, 8K resolution feel
-                - Professional artwork suitable for luxury brand
-                - Rich details and textures
-                - Harmonious color palette
-                - Dramatic yet balanced lighting
-                - The main subject MUST be clearly visible and prominent
-                - Fill the entire canvas edge-to-edge with the artwork
                 {reference_part}
                 
-                === ABSOLUTE RESTRICTIONS (NEVER INCLUDE) ===
-                - NO frames, borders, edges, or margins around the artwork
-                - NO canvas edges or stretched canvas look
-                - NO art supplies (brushes, paints, easels, palettes, pencils)
-                - NO studio/gallery environment elements
-                - NO bottles, containers, packaging
-                - ABSOLUTELY NO TEXT, NO LETTERS, NO WORDS, NO TYPOGRAPHY, NO WRITING OF ANY KIND
-                - NO logos, watermarks, signatures, stamps
-                - NO numbers, symbols, or any written characters
-                - NO mockup or product display elements
-                - CRITICAL: NO random objects, props, or items that were NOT explicitly requested
-                - NO yarn, balls, toys, accessories, furniture, or decorative items unless specifically asked
-                - NO additional elements - ONLY the main subject and background atmosphere
-                - Keep the composition CLEAN and SIMPLE - subject + background ONLY
-                - ONLY create what is explicitly described above
-                - The artwork should fill 100% of the image with no empty space
-                - THIS IS CRITICAL: The image must contain ZERO text or letter-like shapes
+                === MANDATORY RULES ===
+                - Generate a DIRECT VIEW of the scene - as if taking a photo
+                - The subject and background must fill the ENTIRE image edge-to-edge
+                - NO empty space, NO margins, NO borders around the image
+                - DO NOT create a picture of a picture
+                - DO NOT show any frames, walls, or room settings
+                - DO NOT include any picture frames (gold, wood, black, or any kind)
+                - DO NOT show this as something hanging on a wall
+                - DO NOT add any text, letters, signatures, or watermarks
+                - DO NOT add objects that weren't requested
+                - The generated image IS the scene itself, not a depiction of it
                 
-                === ADDITIONAL USER INPUT ===
-                {user_prompt}
-                
-                Create ONLY the artwork itself. The entire image must BE the painting - no meta elements.
+                Think of this as taking a photograph directly of the subject, not photographing a framed picture.
                 """
                 
-                # DALL-E API 호출 (2개 이미지) - 세로 직사각형
+                # DALL-E API 호출 (1개 이미지) - 세로 직사각형 필수
                 generated_images = []
-                for i in range(2):
+                for i in range(1):  # 1개만 생성하여 속도 향상
                     try:
                         response = client.images.generate(
                             model="dall-e-3",
                             prompt=full_prompt,
-                            size="1024x1792",
+                            size="1024x1792",  # 세로로 긴 비율 필수
                             quality="standard",
                             n=1,
                         )
@@ -233,9 +213,8 @@ def ai_image_result_dialog():
                         img = Image.open(BytesIO(res.content))
                         generated_images.append(img)
                     except Exception as e:
-                        # API 실패 시 테스트용 이미지 생성
-                        test_colors = ['#3d5afe', '#e91e63']
-                        test_img = Image.new('RGBA', (256, 256), color=test_colors[i])
+                        # API 실패 시 테스트용 이미지 생성 (세로 비율)
+                        test_img = Image.new('RGBA', (512, 896), color='#3d5afe')
                         generated_images.append(test_img)
                 
                 st.session_state.ai_generated_images = generated_images
@@ -246,28 +225,26 @@ def ai_image_result_dialog():
                 st.error(f"이미지 생성 중 오류: {e}")
                 st.session_state.ai_generating = False
     else:
-        # 생성된 이미지 표시 (2개)
-        cols = st.columns(2)
+        # 생성된 이미지 표시 (1개)
         for i, img in enumerate(st.session_state.ai_generated_images):
-            with cols[i]:
-                st.image(img, use_container_width=True)
-                if st.button("➕", key=f"select_ai_img_{i}", use_container_width=True):
-                    # 이미지를 label_images 리스트에 추가
-                    if 'label_images' not in st.session_state.form_data:
-                        st.session_state.form_data['label_images'] = []
-                    
-                    # 최대 2개까지만 추가 가능
-                    if len(st.session_state.form_data['label_images']) < 2:
-                        st.session_state.form_data['label_images'].append(img)
-                        # 첫 이미지면 자동 선택
-                        if st.session_state.form_data.get('selected_image_idx') is None:
-                            st.session_state.form_data['selected_image_idx'] = len(st.session_state.form_data['label_images']) - 1
-                        st.success("이미지가 추가되었습니다!")
-                    else:
-                        st.warning("최대 2개까지만 추가할 수 있습니다.")
-                    
-                    st.session_state.ai_generated_images = None
-                    st.rerun()
+            st.image(img, use_container_width=True)
+            if st.button("➕ 이 이미지 사용하기", key=f"select_ai_img_{i}", use_container_width=True):
+                # 이미지를 label_images 리스트에 추가
+                if 'label_images' not in st.session_state.form_data:
+                    st.session_state.form_data['label_images'] = []
+                
+                # 최대 2개까지만 추가 가능
+                if len(st.session_state.form_data['label_images']) < 2:
+                    st.session_state.form_data['label_images'].append(img)
+                    # 첫 이미지면 자동 선택
+                    if st.session_state.form_data.get('selected_image_idx') is None:
+                        st.session_state.form_data['selected_image_idx'] = len(st.session_state.form_data['label_images']) - 1
+                    st.success("이미지가 추가되었습니다!")
+                else:
+                    st.warning("최대 2개까지만 추가할 수 있습니다.")
+                
+                st.session_state.ai_generated_images = None
+                st.rerun()
 
 # AI 이미지 생성 모달 - 채팅 인터페이스
 @st.dialog("AI로 이미지 생성", width="large")
@@ -1345,6 +1322,75 @@ with content_col2:
         
         st.write("")
         
+        # 폰트 선택
+        st.markdown("**폰트 선택**")
+        
+        # 웹폰트 로드 (Google Fonts + 로컬 폰트)
+        st.markdown("""
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
+        @font-face {
+            font-family: 'BagelFatOne';
+            src: url('BagelFatOne_Regular_font.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'SCDream';
+            src: url('SCDream9_font.otf') format('opentype');
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # 폰트 옵션
+        font_options = [
+            ("Playfair", "font.ttf", "Playfair Display, serif"),
+            ("BagelFatOne", "BagelFatOne_Regular_font.ttf", "BagelFatOne, sans-serif"),
+            ("SCDream", "SCDream9_font.otf", "SCDream, sans-serif")
+        ]
+        
+        current_font = st.session_state.form_data.get('selected_font', 'font.ttf')
+        
+        # 폰트 버튼들 (각 폰트 스타일 적용)
+        font_cols = st.columns(3)
+        for i, (font_name, font_file, font_css) in enumerate(font_options):
+            with font_cols[i]:
+                is_selected = current_font == font_file
+                border_color = "#FFD700" if is_selected else "#555"
+                bg_color = "#2a2a2a" if is_selected else "#1a1a1a"
+                
+                # HTML 버튼으로 폰트 스타일 적용
+                st.markdown(f"""
+                <div style="width: 100%; padding: 10px; background: {bg_color}; 
+                     border: 2px solid {border_color}; border-radius: 8px; 
+                     text-align: center; cursor: pointer; margin-bottom: 5px;">
+                    <span style="font-family: {font_css}; font-size: 16px; color: white;">{font_name}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button("선택" if not is_selected else "✓ 선택됨", key=f"font_btn_{i}", use_container_width=True, type="primary" if is_selected else "secondary"):
+                    st.session_state.form_data['selected_font'] = font_file
+                    st.rerun()
+        
+        # 향수 이름 미리보기 (선택된 폰트 적용)
+        perfume_name = st.session_state.form_data.get('perfume_name', 'Perfume Name')
+        
+        # 현재 선택된 폰트의 CSS
+        current_font_css = "Playfair Display, serif"
+        for font_name, font_file, font_css in font_options:
+            if font_file == current_font:
+                current_font_css = font_css
+                break
+        
+        st.markdown(f"""
+        <div style="width: 100%; height: 70px; background: #333;
+             border-radius: 8px; border: 1px solid #555;
+             display: flex; align-items: center; justify-content: center; margin-top: 10px;">
+            <span style="font-family: {current_font_css}; color: #FFFFFF; font-size: 22px; font-weight: bold;">{perfume_name.upper()}</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.caption("👁️ 1단계에서 입력한 향수 이름 미리보기 (선택한 폰트 적용)")
+        
+        st.write("")
+        
         # 색상 설정 - 단색 배경 선택 시에만 펼쳐짐
         is_solid_bg = art_style == "단색 배경"
         with st.expander("🎨 색상 설정", expanded=is_solid_bg):
@@ -1630,17 +1676,22 @@ with content_col2:
                     draw = ImageDraw.Draw(base_label_img)
                     
                     # === 텍스트 영역 (하단 끝자락) ===
-                    # 폰트 로드
+                    # 선택된 폰트 로드
+                    selected_font = data.get('selected_font', 'font.ttf')
                     try:
-                        title_font = ImageFont.truetype("font.ttf", 48)
-                        sub_font = ImageFont.truetype("font.ttf", 16)
+                        title_font = ImageFont.truetype(selected_font, 48)
+                        sub_font = ImageFont.truetype(selected_font, 16)
                     except:
                         try:
-                            title_font = ImageFont.truetype("arial.ttf", 48)
-                            sub_font = ImageFont.truetype("arial.ttf", 16)
+                            title_font = ImageFont.truetype("font.ttf", 48)
+                            sub_font = ImageFont.truetype("font.ttf", 16)
                         except:
-                            title_font = ImageFont.load_default()
-                            sub_font = ImageFont.load_default()
+                            try:
+                                title_font = ImageFont.truetype("arial.ttf", 48)
+                                sub_font = ImageFont.truetype("arial.ttf", 16)
+                            except:
+                                title_font = ImageFont.load_default()
+                                sub_font = ImageFont.load_default()
                     
                     # 향수 이름 (하단 끝자락, 두 줄로 분리 가능)
                     perfume_name = data.get('perfume_name', 'PERFUME')
